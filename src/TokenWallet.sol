@@ -58,51 +58,51 @@ contract TokenWallet {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         require(amount > 0, "Amount must be greater than 0");
         require(address(this).balance >= amount, "Contract has insufficient balance");
-        
+
         balances[msg.sender] -= amount;
         totalBalance -= amount;
-        
-        (bool success, ) = msg.sender.call{value: amount}("");
+
+        (bool success,) = msg.sender.call{value: amount}("");
         if (!success) revert TransferFailed();
-        
+
         emit Withdrawal(msg.sender, amount, "withdraw");
     }
 
     function transfer(address to, uint256 amount) public nonReentrant whenNotPaused {
         if (to == address(0) || to == address(this)) revert InvalidRecipient();
-        
+
         require(balances[msg.sender] >= amount, "Insufficient balance");
         require(amount > 0, "Amount must be greater than 0");
-        
+
         balances[msg.sender] -= amount;
         balances[to] += amount;
-        
+
         emit Transfer(msg.sender, to, amount, "transfer");
-        
-        (bool success, ) = to.call{value: amount}("");
+
+        (bool success,) = to.call{value: amount}("");
         if (!success) revert TransferFailed();
     }
 
     function pause() external onlyOwner {
         paused = true;
     }
-    
+
     function unpause() external onlyOwner {
         paused = false;
     }
-    
+
     function emergencyWithdraw() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "No balance to withdraw");
-        
+
         // Store old values for debugging
         uint256 oldTotalBalance = totalBalance;
-        
+
         // Reset total balance before transfer
         totalBalance = 0;
-        
+
         // Try transfer with more specific error handling
-        (bool success, ) = payable(owner).call{value: balance}("");
+        (bool success,) = payable(owner).call{value: balance}("");
         if (!success) {
             // Restore state if transfer fails
             totalBalance = oldTotalBalance;

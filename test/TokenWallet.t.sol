@@ -13,11 +13,12 @@ contract TokenWalletTest is Test {
     event Deposit(address indexed user, uint256 amount, string method);
     event Withdrawal(address indexed user, uint256 amount, string method);
     event Transfer(address indexed from, address indexed to, uint256 amount, string method);
+
     function setUp() public {
         wallet = new TokenWallet();
         alice = makeAddr("alice");
         bob = makeAddr("bob");
-        
+
         // Fund test accounts
         vm.deal(alice, INITIAL_BALANCE);
         vm.deal(bob, INITIAL_BALANCE);
@@ -26,24 +27,24 @@ contract TokenWalletTest is Test {
     /// Task 1: Create function to receive ETH
     function test_ReceiveEth() public {
         uint256 depositAmount = 1 ether;
-        
+
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
         emit Deposit(alice, depositAmount, "receive");
         (bool success,) = address(wallet).call{value: depositAmount}("");
-        
+
         assertTrue(success, "ETH transfer failed");
         assertEq(wallet.getBalance(alice), depositAmount);
     }
 
     function test_FallbackEth() public {
         uint256 depositAmount = 1 ether;
-        
+
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
         emit Deposit(alice, depositAmount, "fallback");
         (bool success,) = address(wallet).call{value: depositAmount}(hex"1234");
-        
+
         assertTrue(success, "ETH transfer with data failed");
         assertEq(wallet.getBalance(alice), depositAmount);
     }
@@ -59,11 +60,11 @@ contract TokenWalletTest is Test {
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
         emit Withdrawal(alice, 0.5 ether, "withdraw");
-        
+
         uint256 balanceBefore = alice.balance;
-        
+
         wallet.withdraw(0.5 ether);
-        
+
         assertEq(alice.balance, balanceBefore + 0.5 ether);
         assertEq(wallet.getBalance(alice), 0.5 ether);
     }
@@ -143,19 +144,19 @@ contract TokenWalletTest is Test {
         vm.assume(depositAmount > 0);
         vm.assume(withdrawAmount > 0);
         vm.assume(withdrawAmount <= depositAmount);
-        
+
         // Setup
         vm.deal(alice, depositAmount);
-        
+
         // Deposit
         vm.prank(alice);
         (bool success,) = address(wallet).call{value: depositAmount}("");
         assertTrue(success);
-        
+
         // Withdraw
         vm.prank(alice);
         wallet.withdraw(withdrawAmount);
-        
+
         // Assert
         assertEq(wallet.getBalance(alice), depositAmount - withdrawAmount);
     }
@@ -207,7 +208,7 @@ contract TokenWalletTest is Test {
 
         vm.prank(alice);
         (bool success,) = address(wallet).call{value: amount}("");
-        
+
         assertTrue(success);
         assertEq(wallet.getBalance(alice), amount);
     }
@@ -234,7 +235,7 @@ contract TokenWalletTest is Test {
         // Pause contract
         vm.prank(wallet.owner());
         wallet.pause();
-        
+
         // Try to withdraw
         vm.prank(alice);
         vm.expectRevert(TokenWallet.Paused.selector);
@@ -246,12 +247,12 @@ contract TokenWalletTest is Test {
         vm.prank(alice);
         (bool success,) = address(wallet).call{value: 1 ether}("");
         assertTrue(success);
-        
+
         // Try to transfer to zero address
         vm.prank(alice);
         vm.expectRevert(TokenWallet.InvalidRecipient.selector);
         wallet.transfer(address(0), 0.5 ether);
-        
+
         // Try to transfer to contract itself
         vm.prank(alice);
         vm.expectRevert(TokenWallet.InvalidRecipient.selector);
@@ -261,25 +262,25 @@ contract TokenWalletTest is Test {
     function test_EmergencyWithdraw() public {
         // First make the owner a proper EOA address
         address payable newOwner = payable(makeAddr("owner"));
-        
+
         // Transfer ownership to our test address
         vm.prank(wallet.owner());
         wallet.transferOwnership(newOwner);
-        
+
         // Setup: Fund contract properly through deposit
         vm.deal(alice, 1 ether);
-        
+
         vm.prank(alice);
         (bool depositSuccess,) = address(wallet).call{value: 1 ether}("");
         require(depositSuccess, "Deposit failed");
-        
+
         // Try emergency withdraw with our test owner
         vm.prank(newOwner);
         wallet.emergencyWithdraw();
-        
+
         // Verify the transfer worked
         assertEq(address(wallet).balance, 0);
         assertEq(wallet.totalBalance(), 0);
         assertEq(newOwner.balance, 1 ether);
     }
-} 
+}
